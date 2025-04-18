@@ -4,16 +4,20 @@ from sqlalchemy import create_engine
 import urllib.parse
 from typing import Dict
 import re
+from datetime import datetime, timedelta
 from datetime import datetime
+import matplotlib.pyplot as plt
+plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei', 'Microsoft YaHei', 'STHeiti']
+plt.rcParams['axes.unicode_minus'] = False
 
-# ========== Step 1: Connect to Database ==========
+
 def get_engine():
     password = urllib.parse.quote_plus("GgJ34Q1aGTO7")
     engine = create_engine(
         f"mysql+pymysql://flowgptzmy:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
     )
     return engine
-# ========== Step 1.5: 获取前 N 个活跃 bot_id ==========
+
 def get_top_bot_ids_by_type(event_date: str, top_n: int = 10) -> Dict[str, list]:
     engine = get_engine()
 
@@ -53,8 +57,7 @@ def get_top_bot_ids_by_type(event_date: str, top_n: int = 10) -> Dict[str, list]
     }
 
 
-# ========== Step 2: SQL Generator ==========
-def generate_bot_quality_sql(bot_id: str, date='2025-03-15', sticky_start='2025-02-01', sticky_end='2025-02-15') -> Dict[str, str]:
+def generate_bot_quality_sql(bot_id: str, date='2025-01-15', sticky_start='2025-01-15', sticky_end='2025-02-15') -> Dict[str, str]:
     sql = {}
 
     sql['click_rate'] = f"""
@@ -160,7 +163,6 @@ def generate_bot_quality_sql(bot_id: str, date='2025-03-15', sticky_start='2025-
 
     return sql
 
-# ========== Step 3: 执行分析并整合结果 ==========
 def run_sql(engine, sql: str) -> pd.DataFrame:
     with engine.connect() as conn:
         return pd.read_sql(sql, conn)
@@ -209,7 +211,6 @@ def analyze_bot_indicators(bot_id: str, date='2025-02-15', sticky_start='2025-02
     results['prompt_id'] = bot_id
     return pd.DataFrame([results])
 
-# ========== Step 4: 归一化并融合评分 ==========
 def normalize_and_score(df: pd.DataFrame, weights: dict = None) -> pd.DataFrame:
     if weights is None:
         weights = {
@@ -223,7 +224,7 @@ def normalize_and_score(df: pd.DataFrame, weights: dict = None) -> pd.DataFrame:
 
     def min_max(series):
         if series.nunique() <= 1:
-            return pd.Series([0.5] * len(series), index=series.index)  # 全相同时设为中位值
+            return pd.Series([0.5] * len(series), index=series.index)
         return (series - series.min()) / (series.max() - series.min())
 
     print("\n📊 开始归一化处理并计算加权得分...")
@@ -238,53 +239,104 @@ def normalize_and_score(df: pd.DataFrame, weights: dict = None) -> pd.DataFrame:
     )
 
     df["final_score"] = df["final_score"].fillna(0).infer_objects(copy=False)
-    df["final_score"] = df["final_score"].apply(lambda x: max(x, 0.01))  # ✅ 加入基础分，避免为0
+    df["final_score"] = df["final_score"].apply(lambda x: max(x, 0.01))
     df["rank"] = df["final_score"].rank(ascending=False, method="min")
     print("✅ 得分计算完成。\n")
     return df
 
-# ========== Step 5: 主调用逻辑 ==========
-if __name__ == "__main__":
-    target_date = "2025-03-15"
-    bot_groups = get_top_bot_ids_by_type(target_date, top_n=10)
 
+def is_valid_date(date_str: str) -> bool:
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
+def is_safe_identifier(text: str) -> bool:
+    return bool(re.match(r'^[a-zA-Z0-9_\-]+$', text))
+
+# ========== 查询执行 ==========
+def run_sql(engine, sql: str) -> pd.DataFrame:
+    with engine.connect() as conn:
+        return pd.read_sql(sql, conn)
+
+def analyze_bot_indicators(bot_id: str, date: str, sticky_start: str, sticky_end: str) -> pd.DataFrame:
+    print(f"\n🔍 正在分析 bot: {bot_id}...")
+    for label, val in {'date': date, 'sticky_start': sticky_start, 'sticky_end': sticky_end}.items():
+        if not is_valid_date(val):
+            raise ValueError(f"❌ 参数错误: {label} 格式应为 YYYY-MM-DD，但收到: {val}")
+    if not is_safe_identifier(bot_id):
+        raise ValueError(f"❌ bot_id 包含非法字符: {bot_id}")
+
+    engine = get_engine()
+    sqls = generate_bot_quality_sql(bot_id, date, sticky_start, sticky_end)
+    results = {}
+
+    for name, sql in sqls.items():
+        try:
+            print(f"➡️ 运行指标 [{name}] 的 SQL...")
+            df = run_sql(engine, sql)
+            print(f"✅ {name} 查询成功，结果行数: {len(df)}")
+            if 'prompt_id' in df.columns and not df.empty:
+                df = df.set_index("prompt_id")
+                for col in df.columns:
+                    results[f"{name}_{col}"] = df.iloc[0][col]
+            else:
+                for col in ['click_user_cnt', 'show_user_cnt', 'chat_user_cnt', 'total_chat_rounds', 'sticky_score', 'avg_retention_days']:
+                    results[f"{name}_{col}"] = None
+        except Exception as e:
+            print(f"❌ {name} 查询失败: {e}")
+            results[f"{name}_error"] = str(e)
+
+    results['prompt_id'] = bot_id
+    return pd.DataFrame([results])
+
+if __name__ == "__main__":
+    # 分析日期
+    target_date = "2025-04-15"
+    #前n个bot质量分析
+    top_n = 20
+
+    target_dt = datetime.strptime(target_date, "%Y-%m-%d")
+    sticky_start = (target_dt - timedelta(days=14)).strftime("%Y-%m-%d")
+    sticky_end = (target_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+    print(f"📅 分析设置: target_date={target_date}, sticky_start={sticky_start}, sticky_end={sticky_end}")
+
+    bot_groups = get_top_bot_ids_by_type(target_date, top_n)
     print("🚀 开始批量分析 bot...")
+
     all_results = []
     for group_type, bot_list in bot_groups.items():
         for bot_id in bot_list:
-            print(f"🔍 正在分析 bot: {bot_id}...")
             try:
-                df = analyze_bot_indicators(bot_id, date=target_date)
+                df = analyze_bot_indicators(bot_id, date=target_date, sticky_start=sticky_start, sticky_end=sticky_end)
                 df["bot_type"] = group_type
                 all_results.append(df)
             except Exception as e:
                 print(f"❌ 分析 bot {bot_id} 失败: {e}")
 
+
     if all_results:
         all_df = pd.concat(all_results, ignore_index=True)
+        print("📋 所有 bot 分析结果数量：", all_df.shape)
+
         scored_df = normalize_and_score(all_df)
-        scored_df["final_score"] = scored_df["final_score"].fillna(0).infer_objects(copy=False)
 
-        # 输出评分表
-        print("🏁 最终评分结果：")
-        print(scored_df[["prompt_id", "bot_type", "final_score", "rank"]])
-        scored_df.to_csv("bot_quality_scored.csv", index=False)
-        print("📁 已保存结果到 bot_quality_scored.csv")
+        sora_df = scored_df[scored_df["bot_type"] == "sora"]
+        non_sora_df = scored_df[scored_df["bot_type"] == "non_sora"]
 
-        # 绘图：AI vs 非AI 平均得分对比
-        avg_scores = scored_df.groupby("bot_type")["final_score"].mean().reset_index()
+        sora_df.to_csv("sora_bot_quality.csv", index=False)
+        non_sora_df.to_csv("non_sora_bot_quality.csv", index=False)
+        print("📁 已分别保存 sora 和非 sora 的评分结果。")
+
+        # 🎨 绘图：Sora vs 非 Sora 平均得分对比
         plt.figure(figsize=(6, 4))
-        plt.bar(avg_scores["bot_type"], avg_scores["final_score"], color=["skyblue", "lightcoral"])
-        plt.title("AI vs 非AI Bot 平均质量评分对比")
+        plt.bar(["Sora", "非 Sora"], [sora_df["final_score"].mean(), non_sora_df["final_score"].mean()], color=["#4c9be8", "#f1948a"])
+        plt.title("Sora vs 非 Sora Bot 平均质量评分对比")
         plt.ylabel("平均得分")
-        plt.xlabel("Bot 类型")
         plt.ylim(0, 1)
-        for idx, row in avg_scores.iterrows():
-            plt.text(row.name, row.final_score + 0.01, f"{row.final_score:.2f}", ha='center')
         plt.tight_layout()
         plt.savefig("bot_quality_comparison.png")
-        print("📊 图表已保存为 bot_quality_comparison.png")
         plt.show()
-
     else:
         print("⚠️ 所有分析都失败，没有生成评分结果。")
