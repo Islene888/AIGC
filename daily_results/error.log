@@ -1,0 +1,24 @@
+2025-04-01: (pymysql.err.OperationalError) (5502, "Getting analyzing error. Detail message: Unknown table 'flow_wide_info.tbl_event_app'.")
+[SQL: 
+                CREATE TEMPORARY TABLE tmp_geo AS
+                SELECT 
+                    user_id,
+                    COALESCE(NULLIF(get_json_string(geo, '$.country'), ''), 'unknown') AS country
+                FROM tbl_event_app
+                WHERE event_date = %(target_date)s
+                  AND user_id IS NOT NULL
+            ]
+[parameters: {'target_date': '2025-04-01'}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-04-02: (pymysql.err.OperationalError) (5502, "Getting analyzing error. Detail message: Unknown table 'flow_wide_info.tbl_event_app'.")
+[SQL: 
+                CREATE TEMPORARY TABLE tmp_geo AS
+                SELECT 
+                    user_id,
+                    COALESCE(NULLIF(get_json_string(geo, '$.country'), ''), 'unknown') AS country
+                FROM tbl_event_app
+                WHERE event_date = %(target_date)s
+                  AND user_id IS NOT NULL
+            ]
+[parameters: {'target_date': '2025-04-02'}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
