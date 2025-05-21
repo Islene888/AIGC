@@ -1,67 +1,67 @@
 # AIGC (AI-Generated Content Platform)
 
-AIGC is a modular analytics framework for evaluating the quality, engagement, and growth performance of AI-generated conversational bots at scale. This repository powers the internal analytics behind FlowGPT’s bot ecosystem, supporting metric computation, A/B testing, and dashboard reporting across thousands of workflows.
+AIGC is a modular analytics framework for evaluating the quality, engagement, and workflow performance of AI-generated conversational bots. This repository supports metric computation, behavioral comparison, and data visualization across different bot tag categories and workflows.
 
 ## 🚀 Core Capabilities
 
-- **Engagement Analytics**: Compute CTR, chat start rate, depth, and user-level stickiness for 5K+ bots.
-- **Retention & LTV Analysis**: Track Day 1/3/7 retention and subscription-based revenue (ARPU, LTV, renewal rate).
-- **A/B Experiment Evaluation**: Bayesian uplift modeling to compare variants using GrowthBook labels.
-- **Bot Performance Tagging**: Automatically evaluate and rank bots by engagement tiers.
-- **Pipeline Automation**: Batch execution with `run_all_metrics.py` and modular logic per metric.
+- **Workflow Analysis**: Analyze bot performance (chat depth, activation rate, click-through rate) across workflows.
+- **Tag-Based Comparison**: Compare performance of bots grouped by custom-defined tags.
+- **Insertion & Backfill**: Insert workflow metadata and identifiers into predefined templates.
+- **Custom Comparison**: Evaluate workflow vs tag vs overall behavior using Python scripts and CSV inputs.
 
 ## 🛠️ Tech Stack
 
-- Python, PySpark, SQL
-- StarRocks (OLAP DB), Kafka, Flink, S3
-- DolphinScheduler (workflow orchestration)
-- Metabase, Superset (visualization)
-- GrowthBook (A/B test labels)
+- Python (pandas, matplotlib)
+- CSV-based lightweight inputs/outputs
+- Manual execution or DolphinScheduler optional
 
 ## 📁 Repository Structure
 
 ```
 AIGC/
-├── bayes/                # Bayesian uplift & win rate calculation
-├── bots/                 # Overall bot-level performance computation
-├── chat/                 # Chat depth per bot/user computation
-├── click/                # Exposure → Click conversion metrics
-├── experiments/          # Experiment label parsing & variation comparison
-├── retention/            # Daily and cohort-based retention logic
-├── subscribe/            # Subscription events, ARPU, renewal rate
-├── test/                 # Unit tests & validation logic
-├── utils/                # Shared constants, grouping, and data tools
-├── zip/                  # Output packaging and compression
-└── run_all_metrics.py    # Main controller script to execute all metrics
+├── data_analsis/
+│   ├── tag/
+│   │   └── by_tag_3_tables.py              # Metrics comparison grouped by tag
+│   └── workflow/
+│       ├── analsis_by_workflow.py         # Core workflow-level metrics summary
+│       ├── dianjilv.py                     # Click-through rate
+│       ├── kailiaolv.py                    # Activation/open rate
+│       ├── liaotiaoshendu.py              # Chat depth
+│       └── liaotiaoshendu1.py             # Alternate depth method
+│
+├── workflow_insert/
+│   ├── AllInOne.csv
+│   ├── insert_code.py                     # Insert workflow info into templates
+│   ├── workflow2.csv
+│   └── workflow_insert.py                 # Insertion logic execution
+│
+├── comparation/                          # Custom logic for comparing results
+└── all/                                   # Full aggregated results
 ```
 
 ## ▶️ Quick Start
 
 ```bash
-git clone https://github.com/Islene888/AIGC.git
+# Clone repo
 cd AIGC/AIGC
 
-# Optional environment setup
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+# Example 1: Run workflow-level analysis
+python data_analsis/workflow/analsis_by_workflow.py
 
-# Execute all metrics
-python run_all_metrics.py
+# Example 2: Insert workflow data
+python workflow_insert/insert_code.py
+
+# Example 3: Run tag-based comparison
+python data_analsis/tag/by_tag_3_tables.py
 ```
 
-## 📊 Output Metrics (Selected)
+## 📊 Metrics Available
 
-- `bot_ctr`, `chat_start_rate`, `chat_depth_user`
-- `user_retention_d1/d3/d7`, `ltv`, `payment_rate`
-- `uplift`, `win_rate`, `variation_summary`
-- `subscribe_dau_rate`, `arpu_by_tag`, `bot_ranking_by_tier`
-
-## 🧪 Example Use Cases
-
-- Identify underperforming bots with low engagement or negative uplift
-- Compare model variants in new bot strategies using Bayesian metrics
-- Monitor subscription LTV trends across tag or workflow segments
+- Workflow click-through rate (CTR)
+- Chat depth per workflow
+- Activation rate
+- Bot performance by tag group
+- Workflow metadata insertion & batch update
 
 ## 📄 License
 
