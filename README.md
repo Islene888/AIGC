@@ -65,4 +65,4 @@ python data_analsis/tag/by_tag_3_tables.py
 
 ## 📄 License
 
-MIT License © 2025 Mengyuan (Ella) Zhao
+License © 2025 Mengyuan (Ella) Zhao
