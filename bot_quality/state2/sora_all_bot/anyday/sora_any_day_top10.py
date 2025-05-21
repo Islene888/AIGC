@@ -14,7 +14,8 @@ plt.rcParams['axes.unicode_minus'] = False
 def get_engine():
     password = urllib.parse.quote_plus("GgJ34Q1aGTO7")
     engine = create_engine(
-        f"mysql+pymysql://flowgptzmy:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
+        f"mysql+pymysql://flowgptzmy:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4",
+        connect_args={"connect_timeout": 3000}
     )
     return engine
 
@@ -51,19 +52,22 @@ def get_top_bot_ids_by_type(event_date: str, top_n: int = 10) -> Dict[str, list]
     }
 
 # ========== 工具函数 ==========
-def run_sql(engine, sql: str) -> pd.DataFrame:
-    with engine.connect() as conn:
-        return pd.read_sql(sql, conn)
-
-def is_valid_date(date_str: str) -> bool:
-    try:
-        datetime.strptime(date_str, "%Y-%m-%d")
-        return True
-    except ValueError:
-        return False
-
-def is_safe_identifier(text: str) -> bool:
-    return bool(re.match(r'^[a-zA-Z0-9_\-]+$', text))
+def compute_final_score(row):
+    score_items = []
+    for key in [
+        "click_rate_click_rate",
+        "chat_start_rate_chat_start_rate",
+        "avg_chat_rounds_avg_chat_rounds",
+        "sticky_score_sticky_score",
+        "avg_chat_rounds_user_avg_chat_rounds_per_user",
+        "avg_retention_days_avg_retention_days"
+    ]:
+        val = row.get(key)
+        if val is not None:
+            score_items.append(val)
+    if score_items:
+        return round(sum(score_items) / len(score_items), 4)
+    return None
 
 # ========== SQL生成器 ==========
 def generate_bot_quality_sql(bot_id: str, date: str, sticky_start: str, sticky_end: str) -> Dict[str, str]:
@@ -154,8 +158,7 @@ def generate_bot_quality_sql(bot_id: str, date: str, sticky_start: str, sticky_e
         """
     return sql
 
-
-
+# ========== 指标分析 ==========
 def analyze_bot_indicators(bot_id: str, date: str, sticky_start: str, sticky_end: str) -> pd.DataFrame:
     print(f"分析 bot: {bot_id}")
     engine = get_engine()
@@ -169,18 +172,18 @@ def analyze_bot_indicators(bot_id: str, date: str, sticky_start: str, sticky_end
                 for col in df.columns:
                     results[f"{name}_{col}"] = df.iloc[0][col]
             else:
-                for col in ['click_user_cnt', 'show_user_cnt', 'chat_user_cnt', 'total_chat_rounds', 'sticky_score', 'avg_retention_days']:
-                    results[f"{name}_{col}"] = None
+                results[f"{name}_empty"] = True
         except Exception as e:
             print(f"❌ {name} 查询失败: {e}")
             results[f"{name}_error"] = str(e)
 
     results['prompt_id'] = bot_id
+    results['final_score'] = compute_final_score(results)
     return pd.DataFrame([results])
 
-# ========== 主程序入口：全年分析 ==========
+# ========== 主程序入口 ==========
 if __name__ == "__main__":
-    start_date = datetime.strptime("2025-01-01", "%Y-%m-%d")
+    start_date = datetime.strptime("2025-04-01", "%Y-%m-%d")
     end_date = datetime.strptime("2025-04-17", "%Y-%m-%d")
     top_n = 10
     all_daily = []
@@ -207,11 +210,12 @@ if __name__ == "__main__":
         result_df = pd.concat(all_daily, ignore_index=True)
         result_df.to_csv("all_bot_scores_daily.csv", index=False)
 
-        # 折线图
+        # 折线图绘制
         plt.figure(figsize=(10, 6))
         for btype in ['sora', 'non_sora']:
             tmp = result_df[result_df['bot_type'] == btype].groupby("event_date")["final_score"].mean()
-            plt.plot(tmp.index, tmp.values, label=btype)
+            if not tmp.empty:
+                plt.plot(tmp.index, tmp.values, label=btype)
         plt.xticks(rotation=45)
         plt.title("Sora vs 非 Sora Bot 每日平均得分趋势")
         plt.ylabel("平均得分")
