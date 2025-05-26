@@ -1,7 +1,13 @@
+# 文件名：bot_tags_exploded.py
+
 import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime, timedelta
 import urllib.parse
+import logging
+
+# 初始化日志
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # 创建数据库连接
 def get_db_connection():
@@ -9,8 +15,8 @@ def get_db_connection():
     db_url = f"mysql+pymysql://bigdata:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
     return create_engine(db_url)
 
-# 插入数据函数
-def insert_bot_tags_exploded_daily(date_str):
+# 单日插入逻辑
+def insert_bot_tags_exploded_daily(date_str: str):
     sql = f"""
     INSERT INTO tbl_bot_tags_exploded_daily
     WITH raw_tags AS (
@@ -43,19 +49,31 @@ def insert_bot_tags_exploded_daily(date_str):
     WHERE TRIM(SUBSTRING_INDEX(SUBSTRING_INDEX(r.tag_str, ',', n.n), ',', -1)) != '';
     """
     engine = get_db_connection()
-    with engine.begin() as conn:
-        conn.execute(text(sql))
-        print(f"✅ 插入完成: {date_str}")
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(sql))
+            logging.info(f"✅ 插入完成: {date_str}")
+    except Exception as e:
+        logging.error(f"❌ 插入失败: {date_str}，错误：{e}")
 
-# 主函数（定义起止时间）
-if __name__ == "__main__":
-    START_DATE = "2025-04-17"
-    END_DATE = "2025-05-16"
+# 主函数（支持统一调用）
+def main(start_date_str: str, end_date_str: str):
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        if start_date > end_date:
+            logging.error("❌ 开始日期不能晚于结束日期")
+            return
+    except ValueError as e:
+        logging.error(f"❌ 日期格式错误：{e}")
+        return
 
-    start_date = datetime.strptime(START_DATE, "%Y-%m-%d")
-    end_date = datetime.strptime(END_DATE, "%Y-%m-%d")
     date_list = [(start_date + timedelta(days=i)).strftime("%Y-%m-%d")
                  for i in range((end_date - start_date).days + 1)]
 
     for d in date_list:
         insert_bot_tags_exploded_daily(d)
+
+# 默认入口
+if __name__ == "__main__":
+    main("2025-05-26", "2025-05-26")

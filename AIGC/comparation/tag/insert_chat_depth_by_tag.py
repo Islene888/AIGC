@@ -1,7 +1,13 @@
+# 文件名：chat_depth_by_tag.py
+
 import urllib.parse
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine, text
 import time
+import logging
+
+# 日志设置
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # 数据库连接函数
 def get_db_connection():
@@ -14,12 +20,12 @@ def get_db_connection():
         pool_recycle=3600
     )
 
-# 插入单日数据（嵌套子查询，兼容 StarRocks）
-def insert_chat_depth_by_tag_for_date(date_str):
-    print(f"\U0001F680 正在插入 {date_str} 聊天深度数据...")
+# 插入单日聊天深度数据（按标签）
+def insert_chat_depth_by_tag_for_date(date_str: str):
+    logging.info(f"🚀 正在插入 {date_str} 聊天深度数据")
     engine = get_db_connection()
 
-    # 预检查该日是否有数据
+    # 检查是否有有效数据
     check_sql = f"""
         SELECT COUNT(*) FROM flow_event_info.tbl_app_event_chat_send 
         WHERE event_date = '{date_str}' 
@@ -28,9 +34,10 @@ def insert_chat_depth_by_tag_for_date(date_str):
     with engine.connect() as conn:
         result = conn.execute(text(check_sql)).scalar()
         if result == 0:
-            print(f"⚠️ 跳过 {date_str}：无聊天数据")
+            logging.warning(f"⚠️ 跳过 {date_str}：无聊天数据")
             return
 
+    # 插入 SQL
     sql = f"""
     INSERT INTO tbl_report_chat_depth_by_tag
     SELECT * FROM (
@@ -74,21 +81,23 @@ def insert_chat_depth_by_tag_for_date(date_str):
     try:
         with engine.begin() as conn:
             conn.execute(text(sql))
-        print(f"✅ 插入完成: {date_str}")
+        logging.info(f"✅ 插入完成: {date_str}")
     except Exception as e:
-        print(f"❌ 插入失败: {date_str}，原因: {e}")
+        logging.error(f"❌ 插入失败: {date_str}，原因: {e}")
         with open("../../insert_failed.sql", "a") as f:
             f.write(f"-- {date_str}\n{sql}\n\n")
 
-# 主函数：批量插入多个日期
-def insert_all_dates(start_str: str, end_str: str):
-    start_date = datetime.strptime(start_str, "%Y-%m-%d")
-    end_date = datetime.strptime(end_str, "%Y-%m-%d")
+# 主方法（统一入口）
+def main(start_date_str: str, end_date_str: str):
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+    end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+
     for i in range((end_date - start_date).days + 1):
         date_str = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
         insert_chat_depth_by_tag_for_date(date_str)
         if i % 5 == 0:
             time.sleep(1)
 
+# 命令行入口
 if __name__ == "__main__":
-    insert_all_dates(start_str="2025-04-16", end_str="2025-05-16")
+    main("2025-05-26", "2025-05-26")

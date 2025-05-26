@@ -1,10 +1,12 @@
+# 文件名：chat_start_rate.py
+
 import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime, timedelta
 import urllib.parse
 import logging
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # 数据库连接配置
 def get_db_connection():
@@ -14,6 +16,7 @@ def get_db_connection():
 
 engine = get_db_connection()
 
+# 插入单日 chat_start_rate 数据
 def insert_chat_start_rate(event_date: str):
     logging.info(f"🚀 正在插入 {event_date} 的 chat_start_rate 数据")
     sql = f"""
@@ -69,13 +72,24 @@ def insert_chat_start_rate(event_date: str):
     except Exception as e:
         logging.error(f"❌ 插入失败：{event_date}，错误：{e}")
 
-if __name__ == "__main__":
-    # 设置日期范围
-    start_date = datetime.strptime("2025-04-16", "%Y-%m-%d")
-    end_date = datetime.strptime("2025-05-16", "%Y-%m-%d")
+# 主方法，支持外部传参调用
+def main(start_date_str: str, end_date_str: str):
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        if start_date > end_date:
+            logging.error("❌ 开始日期不能晚于结束日期")
+            return
+    except ValueError as ve:
+        logging.error(f"❌ 日期格式错误：{ve}")
+        return
 
     curr_date = start_date
     while curr_date <= end_date:
         date_str = curr_date.strftime("%Y-%m-%d")
         insert_chat_start_rate(date_str)
         curr_date += timedelta(days=1)
+
+# 可选：直接运行文件时默认行为
+if __name__ == "__main__":
+    main("2025-05-17", "2025-05-25")

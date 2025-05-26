@@ -49,13 +49,11 @@ def insert_click_rate(event_date: str):
         conn.execute(text(insert_sql))
         logging.info(f"✅ 插入完成: {event_date}")
 
-# 批量插入 4 月份的数据（2025-04-01 ~ 2025-04-30）
-if __name__ == "__main__":
-    # 自定义开始和结束日期
-    start_date = datetime.strptime("2025-04-16", "%Y-%m-%d")
-    end_date = datetime.strptime("2025-05-20", "%Y-%m-%d")
 
-    # 遍历日期范围，逐天插入
+def main(start_date_str: str, end_date_str: str):
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+    end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+
     curr_date = start_date
     while curr_date <= end_date:
         date_str = curr_date.strftime("%Y-%m-%d")
@@ -64,4 +62,9 @@ if __name__ == "__main__":
         except Exception as e:
             logging.error(f"❌ 插入失败：{date_str}，错误：{e}")
         curr_date += timedelta(days=1)
+
+
+# 可选的默认执行（也可以删除）
+if __name__ == "__main__":
+    main("2025-05-23", "2025-05-25")
 

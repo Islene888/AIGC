@@ -1,3 +1,5 @@
+# 文件名：chat_rounds.py
+
 import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime, timedelta
@@ -5,7 +7,7 @@ import urllib.parse
 import logging
 
 # 初始化日志
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # 数据库连接
 def get_db_engine():
@@ -48,13 +50,24 @@ def insert_chat_rounds_for_date(event_date: str):
     except Exception as e:
         logging.error(f"❌ 插入失败: {event_date}，错误信息：{e}")
 
-if __name__ == "__main__":
-    # 设置批量插入的起止日期
-    start_date = datetime.strptime("2025-04-16", "%Y-%m-%d")
-    end_date = datetime.strptime("2025-05-16", "%Y-%m-%d")
+# 主方法，支持外部传参调用
+def main(start_date_str: str, end_date_str: str):
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        if start_date > end_date:
+            logging.error("❌ 开始日期不能晚于结束日期")
+            return
+    except ValueError as ve:
+        logging.error(f"❌ 日期格式错误：{ve}")
+        return
 
     curr_date = start_date
     while curr_date <= end_date:
         date_str = curr_date.strftime("%Y-%m-%d")
         insert_chat_rounds_for_date(date_str)
         curr_date += timedelta(days=1)
+
+# 默认入口（可选）
+if __name__ == "__main__":
+    main("2025-05-23", "2025-05-25")

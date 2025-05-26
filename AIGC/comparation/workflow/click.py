@@ -1,21 +1,34 @@
+# 文件名：click_rate_compare.py
+
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine, text
 import urllib.parse
+import logging
 
-# 创建数据库连接
+# 日志设置
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+# 数据库连接
 def get_engine():
     password = urllib.parse.quote_plus("flowgpt@2024.com")
     return create_engine(
         f"mysql+pymysql://bigdata:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
     )
 
-# 插入函数
+# 插入点击率对比日报
 def insert_click_rate_compare(start_date_str: str, end_date_str: str):
-    start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-    end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
-    engine = get_engine()
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        if start_date > end_date:
+            logging.error("❌ 开始日期不能晚于结束日期")
+            return
+    except ValueError as e:
+        logging.error(f"❌ 日期格式错误：{e}")
+        return
 
-    with engine.connect() as conn:
+    engine = get_engine()
+    with engine.begin() as conn:
         for i in range((end_date - start_date).days + 1):
             event_date = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
             sql = f"""
@@ -51,9 +64,16 @@ def insert_click_rate_compare(start_date_str: str, end_date_str: str):
                 AND b.event_name IN ('view_bot', 'show_prompt_card')
             ) t;
             """
-            conn.execute(text(sql))
-            print(f"✅ 插入完成: {event_date}")
+            try:
+                conn.execute(text(sql))
+                logging.info(f"✅ 插入完成: {event_date}")
+            except Exception as e:
+                logging.error(f"❌ 插入失败: {event_date}，错误：{e}")
 
-# 执行入口
+# 主方法（统一接口）
+def main(start_date_str: str, end_date_str: str):
+    insert_click_rate_compare(start_date_str, end_date_str)
+
+# 命令行入口
 if __name__ == "__main__":
-    insert_click_rate_compare(start_date_str="2025-04-16", end_date_str="2025-05-16")
+    main("2025-04-17", "2025-05-25")

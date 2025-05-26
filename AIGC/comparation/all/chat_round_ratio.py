@@ -50,4 +50,4 @@ def insert_chat_depth_compare(start_date_str: str, end_date_str: str):
 
 # 主程序入口
 if __name__ == "__main__":
-    insert_chat_depth_compare(start_date_str="2025-04-16", end_date_str="2025-05-12")
+    insert_chat_depth_compare(start_date_str="2025-04-16", end_date_str="2025-05-22")
