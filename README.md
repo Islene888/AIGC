@@ -62,7 +62,3 @@ python data_analsis/tag/by_tag_3_tables.py
 - Activation rate
 - Bot performance by tag group
 - Workflow metadata insertion & batch update
-
-## 📄 License
-
-License © 2025 Mengyuan (Ella) Zhao
