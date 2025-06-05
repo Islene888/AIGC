@@ -3,17 +3,31 @@ from sqlalchemy import create_engine, text
 import urllib.parse
 from datetime import datetime, timedelta
 import logging
+import os
+from dotenv import load_dotenv
 
-# 配置数据库连接
-password = urllib.parse.quote_plus("flowgpt@2024.com")
-DATABASE_URL = f"mysql+pymysql://bigdata:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
-engine = create_engine(DATABASE_URL)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+# 加载环境变量
+load_dotenv()
 
-def insert_click_rate(event_date: str):
+# 配置 logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+def get_db_connection():
+    password = urllib.parse.quote_plus(os.environ.get('DB_PASSWORD'))
+    if not password:
+        raise ValueError("DB_PASSWORD 环境变量未设置！")
+    DATABASE_URL = f"mysql+pymysql://bigdata:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
+    engine = create_engine(DATABASE_URL)
+    logging.info("✅ 数据库连接已建立。")
+    return engine
+
+def insert_click_rate(engine, event_date: str):
     logging.info(f"📌 正在插入 {event_date} 的点击率数据")
     insert_sql = f"""
-    INSERT INTO tbl_report_AIGC_click_rate
+    INSERT INTO flow_report_app.tbl_report_AIGC_click_rate
     WITH valid_prompts AS (
       SELECT DISTINCT prompt_id, workflow, tags
       FROM AIGC_prompt_tag_with_v5
@@ -49,22 +63,23 @@ def insert_click_rate(event_date: str):
         conn.execute(text(insert_sql))
         logging.info(f"✅ 插入完成: {event_date}")
 
-
 def main(start_date_str: str, end_date_str: str):
     start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
     end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
 
+    # 日期正向循环
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+
+    engine = get_db_connection()
     curr_date = start_date
     while curr_date <= end_date:
         date_str = curr_date.strftime("%Y-%m-%d")
         try:
-            insert_click_rate(date_str)
+            insert_click_rate(engine, date_str)
         except Exception as e:
             logging.error(f"❌ 插入失败：{date_str}，错误：{e}")
         curr_date += timedelta(days=1)
 
-
-# 可选的默认执行（也可以删除）
 if __name__ == "__main__":
-    main("2025-05-23", "2025-05-25")
-
+    main("2025-06-05", "2025-06-05")

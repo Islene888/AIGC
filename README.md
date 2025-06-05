@@ -49,10 +49,10 @@ cd AIGC/AIGC
 python data_analsis/workflow/analsis_by_workflow.py
 
 # Example 2: Insert workflow data
-python workflow_insert/insert_code.py
+python workflow_insert/insert_luna.py
 
 # Example 3: Run tag-based comparison
-python data_analsis/tag/by_tag_3_tables.py
+python data_analsis/tag/three_metrics_by_tag.py
 ```
 
 ## 📊 Metrics Available

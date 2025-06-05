@@ -9,10 +9,16 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # 数据库连接配置
+import logging
+import os
+from dotenv import load_dotenv
+load_dotenv()
 def get_db_connection():
-    password = urllib.parse.quote_plus("flowgpt@2024.com")
+    password = urllib.parse.quote_plus(os.environ['DB_PASSWORD'])
     DATABASE_URL = f"mysql+pymysql://bigdata:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
-    return create_engine(DATABASE_URL)
+    engine = create_engine(DATABASE_URL)
+    logging.info("✅ 数据库连接已建立。")
+    return engine
 
 engine = get_db_connection()
 
@@ -20,7 +26,7 @@ engine = get_db_connection()
 def insert_chat_start_rate(event_date: str):
     logging.info(f"🚀 正在插入 {event_date} 的 chat_start_rate 数据")
     sql = f"""
-    INSERT INTO tbl_report_AIGC_chat_start_rate
+    INSERT INTO flow_report_app.tbl_report_AIGC_chat_start_rate
     WITH valid_prompts AS (
       SELECT DISTINCT prompt_id, workflow, tags
       FROM AIGC_prompt_tag_with_v5
@@ -92,4 +98,4 @@ def main(start_date_str: str, end_date_str: str):
 
 # 可选：直接运行文件时默认行为
 if __name__ == "__main__":
-    main("2025-05-17", "2025-05-25")
+    main("2025-06-05", "2025-06-05")

@@ -10,15 +10,21 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # 创建数据库连接
+import logging
+import os
+from dotenv import load_dotenv
+load_dotenv()
 def get_db_connection():
-    password = urllib.parse.quote_plus("flowgpt@2024.com")
-    db_url = f"mysql+pymysql://bigdata:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
-    return create_engine(db_url)
+    password = urllib.parse.quote_plus(os.environ['DB_PASSWORD'])
+    DATABASE_URL = f"mysql+pymysql://bigdata:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
+    engine = create_engine(DATABASE_URL)
+    logging.info("✅ 数据库连接已建立。")
+    return engine
 
 # 单日插入逻辑
 def insert_bot_tags_exploded_daily(date_str: str):
     sql = f"""
-    INSERT INTO tbl_bot_tags_exploded_daily
+    INSERT INTO flow_wide_info.tbl_bot_tags_exploded_daily
     WITH raw_tags AS (
       SELECT 
         ptl.`"PromptId"` AS prompt_id,
@@ -76,4 +82,4 @@ def main(start_date_str: str, end_date_str: str):
 
 # 默认入口
 if __name__ == "__main__":
-    main("2025-05-26", "2025-05-26")
+    main("2025-06-05", "2025-06-05")

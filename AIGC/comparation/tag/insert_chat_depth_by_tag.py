@@ -10,15 +10,16 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # 数据库连接函数
+import logging
+import os
+from dotenv import load_dotenv
+load_dotenv()
 def get_db_connection():
-    password = urllib.parse.quote_plus("flowgpt@2024.com")
-    db_url = f"mysql+pymysql://bigdata:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
-    return create_engine(
-        db_url,
-        pool_size=5,
-        max_overflow=0,
-        pool_recycle=3600
-    )
+    password = urllib.parse.quote_plus(os.environ['DB_PASSWORD'])
+    DATABASE_URL = f"mysql+pymysql://bigdata:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
+    engine = create_engine(DATABASE_URL)
+    logging.info("✅ 数据库连接已建立。")
+    return engine
 
 # 插入单日聊天深度数据（按标签）
 def insert_chat_depth_by_tag_for_date(date_str: str):
@@ -39,7 +40,7 @@ def insert_chat_depth_by_tag_for_date(date_str: str):
 
     # 插入 SQL
     sql = f"""
-    INSERT INTO tbl_report_chat_depth_by_tag
+    INSERT INTO flow_report_app.tbl_report_chat_depth_by_tag
     SELECT * FROM (
       SELECT
         b.event_date,
@@ -100,4 +101,4 @@ def main(start_date_str: str, end_date_str: str):
 
 # 命令行入口
 if __name__ == "__main__":
-    main("2025-05-26", "2025-05-26")
+    main("2025-06-05", "2025-06-05")

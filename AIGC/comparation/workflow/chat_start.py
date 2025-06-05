@@ -9,11 +9,16 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # 数据库连接
-def get_engine():
-    password = urllib.parse.quote_plus("flowgpt@2024.com")
-    return create_engine(
-        f"mysql+pymysql://bigdata:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
-    )
+import logging
+import os
+from dotenv import load_dotenv
+load_dotenv()
+def get_db_connection():
+    password = urllib.parse.quote_plus(os.environ['DB_PASSWORD'])
+    DATABASE_URL = f"mysql+pymysql://bigdata:{password}@3.135.224.186:9030/flow_ab_test?charset=utf8mb4"
+    engine = create_engine(DATABASE_URL)
+    logging.info("✅ 数据库连接已建立。")
+    return engine
 
 # 插入开聊率对比数据
 def insert_chat_start_rate_compare(start_date_str: str, end_date_str: str):
@@ -27,12 +32,12 @@ def insert_chat_start_rate_compare(start_date_str: str, end_date_str: str):
         logging.error(f"❌ 日期格式错误：{e}")
         return
 
-    engine = get_engine()
+    engine = get_db_connection()
     with engine.begin() as conn:
         for i in range((end_date - start_date).days + 1):
             event_date = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
             sql = f"""
-            INSERT INTO tbl_report_chat_start_rate_compare_daily
+            INSERT INTO flow_report_app.tbl_report_chat_start_rate_compare_daily
             SELECT * FROM (
               SELECT
                 a.event_date,
@@ -80,4 +85,4 @@ def main(start_date_str: str, end_date_str: str):
 
 # 脚本直接运行入口
 if __name__ == "__main__":
-    main("2025-04-17", "2025-05-26")
+    main("2025-04-16", "2025-05-29")
