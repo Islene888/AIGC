@@ -62,7 +62,3 @@ python data_analsis/tag/three_metrics_by_tag.py
 - Activation rate
 - Bot performance by tag group
 - Workflow metadata insertion & batch update
-
-## 📄 License
-
-License © 2025 Mengyuan (Ella) Zhao
